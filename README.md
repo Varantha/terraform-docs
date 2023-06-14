@@ -231,6 +231,7 @@ will be ignored for other formatters.
 
 - `{{ .Header }}`
 - `{{ .Footer }}`
+- `{{ .Examples }}`
 - `{{ .Inputs }}`
 - `{{ .Modules }}`
 - `{{ .Outputs }}`

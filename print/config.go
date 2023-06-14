@@ -35,6 +35,7 @@ type Config struct {
 	OutputValues outputvalues `mapstructure:"output-values"`
 	Sort         sort         `mapstructure:"sort"`
 	Settings     settings     `mapstructure:"settings"`
+	Examples     examples     `mapstructure:"examples"`
 
 	ModuleRoot string
 }
@@ -49,6 +50,7 @@ func NewConfig() *Config {
 		OutputValues: outputvalues{},
 		Sort:         sort{},
 		Settings:     settings{},
+		Examples:     examples{},
 	}
 }
 
@@ -67,6 +69,7 @@ func DefaultConfig() *Config {
 		OutputValues: defaultOutputValues(),
 		Sort:         defaultSort(),
 		Settings:     defaultSettings(),
+		Examples:     defaultExamples(),
 
 		ModuleRoot: "",
 	}
@@ -96,6 +99,7 @@ const (
 	sectionDataSources  = "data-sources"
 	sectionFooter       = "footer"
 	sectionHeader       = "header"
+	sectionExamples     = "examples"
 	sectionInputs       = "inputs"
 	sectionModules      = "modules"
 	sectionOutputs      = "outputs"
@@ -109,6 +113,7 @@ var allSections = []string{
 	sectionDataSources,
 	sectionFooter,
 	sectionHeader,
+	sectionExamples,
 	sectionInputs,
 	sectionModules,
 	sectionOutputs,
@@ -127,6 +132,7 @@ type sections struct {
 	DataSources  bool
 	Header       bool
 	Footer       bool
+	Examples     bool
 	Inputs       bool
 	ModuleCalls  bool
 	Outputs      bool
@@ -142,6 +148,7 @@ func defaultSections() sections {
 
 		DataSources:  true,
 		Header:       true,
+		Examples:     true,
 		Footer:       false,
 		Inputs:       true,
 		ModuleCalls:  true,
@@ -229,6 +236,24 @@ func defaultOutput() output {
 	}
 }
 
+type examples struct {
+	ExampleFolder string   `mapstructure:"exampleFolder"`
+	Include       []string `mapstructure:"include"`
+	Exclude       []string `mapstructure:"exclude"`
+	Limit         int      `mapstructure:"limit"`
+	ShowTitles    bool     `mapstructure:"showTitles"`
+}
+
+func defaultExamples() examples {
+	return examples{
+		ExampleFolder: "./examples",
+		Include:       []string{},
+		Exclude:       []string{},
+		Limit:         0,
+		ShowTitles:    true,
+	}
+}
+
 func (o *output) validate() error {
 	if o.File == "" {
 		return nil
@@ -291,6 +316,29 @@ func (o *output) validate() error {
 
 	o.BeginComment = strings.TrimSpace(lines[0])
 	o.EndComment = strings.TrimSpace(lines[len(lines)-1])
+
+	return nil
+}
+
+func (e *examples) validate() error {
+
+	tests := []struct {
+		condition  func() bool
+		errMessage string
+	}{
+		{
+			condition: func() bool {
+				return len(e.Include) > 0 && len(e.Exclude) > 0
+			},
+			errMessage: "'include' and 'exclude' can't be used together in Example config.",
+		},
+	}
+
+	for _, t := range tests {
+		if t.condition() {
+			return fmt.Errorf(t.errMessage)
+		}
+	}
 
 	return nil
 }
@@ -421,6 +469,7 @@ func (c *Config) Parse() {
 	// sections
 	c.Sections.DataSources = c.Sections.visibility("data-sources")
 	c.Sections.Header = c.Sections.visibility("header")
+	c.Sections.Examples = c.Sections.visibility("examples")
 	c.Sections.Inputs = c.Sections.visibility("inputs")
 	c.Sections.ModuleCalls = c.Sections.visibility("modules")
 	c.Sections.Outputs = c.Sections.visibility("outputs")
@@ -463,6 +512,7 @@ func (c *Config) Validate() error {
 		c.OutputValues.validate,
 		c.Sort.validate,
 		c.Settings.validate,
+		c.Examples.validate,
 	} {
 		if err := fn(); err != nil {
 			return err
